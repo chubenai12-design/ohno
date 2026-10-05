@@ -20,12 +20,12 @@
   </header>
 
   <main>
-    <aside class="notice"><strong>Lưu ý về Render:</strong> IP hiển thị là IP outbound đang được quan sát. Render có thể dùng bất kỳ IP nào trong dải outbound của region; muốn allowlist ổn định, hãy nhập toàn bộ CIDR trong mục <em>Connect → Outbound</em> hoặc dùng Dedicated IP.</aside>
+    <aside class="notice"><strong>ProxyXoay tự động:</strong> Master lấy IP outbound đang được quan sát của từng vệ tinh, gửi IP đó qua tham số <code>whitelist</code>, tự cấp proxy và tự làm mới trước khi proxy hết hạn. Render dùng dải IP dùng chung nên IP của hai kết nối không được đảm bảo luôn giống nhau; nếu proxy từ chối dù whitelist đúng, cần Dedicated Outbound IP/static egress.</aside>
     <section class="metrics">
       <article><span>Vệ tinh online</span><strong id="onlineCount">0</strong></article>
       <article><span>Tổng vệ tinh</span><strong id="agentCount">0</strong></article>
-      <article><span>Proxy</span><strong id="proxyCount">0</strong></article>
-      <article><span>Proxy hoạt động</span><strong id="healthyCount">0</strong></article>
+      <article><span>Key ProxyXoay</span><strong id="proxyCount">0</strong></article>
+      <article><span>Key đang cấp proxy</span><strong id="healthyCount">0</strong></article>
     </section>
 
     <section class="grid">
@@ -36,21 +36,21 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Vệ tinh</th><th>IP VPS để whitelist</th><th>Proxy được gán</th><th>Kiểm tra proxy</th><th></th></tr></thead>
-            <tbody id="agents"><tr><td colspan="5" class="empty">Chưa có vệ tinh.</td></tr></tbody>
+            <thead><tr><th>Vệ tinh</th><th>IP VPS / whitelist</th><th>Key tự gán</th><th>Proxy hiện tại</th><th>Kiểm tra proxy</th><th></th></tr></thead>
+            <tbody id="agents"><tr><td colspan="6" class="empty">Chưa có vệ tinh.</td></tr></tbody>
           </table>
         </div>
       </article>
 
       <article class="panel">
         <div class="panel-title">
-          <div><p class="eyebrow">PROXIES</p><h2>Kho proxy</h2></div>
-          <button id="showProxyForm">+ Thêm proxy</button>
+          <div><p class="eyebrow">PROXYXOAY KEYS</p><h2>Kho key tự động</h2></div>
+          <button id="showProxyForm">+ Thêm key</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Tên</th><th>Endpoint</th><th>Xác thực</th><th>Đang gán</th><th></th></tr></thead>
-            <tbody id="proxies"><tr><td colspan="5" class="empty">Chưa có proxy.</td></tr></tbody>
+            <thead><tr><th>Key</th><th>Vệ tinh</th><th>Whitelist</th><th>Proxy được cấp</th><th>Hết hạn</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody id="proxies"><tr><td colspan="7" class="empty">Chưa có key ProxyXoay.</td></tr></tbody>
           </table>
         </div>
       </article>
@@ -69,15 +69,11 @@
 
   <dialog id="proxyDialog">
     <form id="proxyForm">
-      <div class="dialog-title"><h2>Thêm proxy</h2><button type="button" class="icon close">×</button></div>
-      <label>Tên proxy<input name="name" maxlength="80" placeholder="Proxy VN 01" required></label>
-      <label>URL<input name="url" placeholder="http://host:port" required></label>
-      <div class="two-cols">
-        <label>Username<input name="username" autocomplete="off"></label>
-        <label>Password<input name="password" type="password" autocomplete="new-password"></label>
-      </div>
-      <p class="hint">Hỗ trợ http, https, socks4, socks5. Không đặt user/password trong URL.</p>
-      <div class="dialog-actions"><button type="button" class="secondary close">Hủy</button><button type="submit">Lưu proxy</button></div>
+      <div class="dialog-title"><h2>Thêm key ProxyXoay</h2><button type="button" class="icon close">×</button></div>
+      <label>Tên gợi nhớ<input name="name" maxlength="80" placeholder="Key ProxyXoay 01" required></label>
+      <label>Key<input name="key" type="password" maxlength="500" autocomplete="new-password" required></label>
+      <p class="hint">Master mã hóa key, tự lấy IP vệ tinh làm whitelist và tự gọi API lấy proxy. Mỗi key chỉ được cấp cho một vệ tinh.</p>
+      <div class="dialog-actions"><button type="button" class="secondary close">Hủy</button><button type="submit">Lưu key</button></div>
     </form>
   </dialog>
 

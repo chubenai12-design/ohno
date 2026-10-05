@@ -16,13 +16,15 @@ public static class MasterApp
             ?? throw new InvalidOperationException("MASTER_ENCRYPTION_KEY is required in master mode.");
         var protector = new SecretProtector(encryptionKey);
         IStateStore store = CreateStore();
-        var repository = new StateRepository(store, protector);
+        var proxyXoay = new ProxyXoayClient(Environment.GetEnvironmentVariable("PROXYXOAY_API_URL"));
+        var repository = new StateRepository(store, protector, proxyXoay);
         await repository.InitializeAsync(CancellationToken.None);
 
         var builder = WebApplication.CreateSlimBuilder(args);
         builder.WebHost.UseUrls("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
         builder.Services.AddSingleton(repository);
         var app = builder.Build();
+        app.Lifetime.ApplicationStopping.Register(proxyXoay.Dispose);
 
         var forwarded = new ForwardedHeadersOptions
         {
@@ -81,26 +83,21 @@ public static class MasterApp
             RequireAdminMutation(context);
             return await repo.DeleteAgentAsync(id, ct) ? Results.NoContent() : Results.NotFound();
         });
-        app.MapPut("/api/admin/agents/{id}/proxy", async (HttpContext context, string id, AssignProxyRequest request, StateRepository repo, CancellationToken ct) =>
+        app.MapPost("/api/admin/proxy-keys", async (HttpContext context, CreateProxyKeyRequest request, StateRepository repo, CancellationToken ct) =>
         {
             RequireAdminMutation(context);
-            return await repo.AssignProxyAsync(id, request.ProxyId, ct) ? Results.NoContent() : Results.NotFound();
+            return Results.Created("/api/admin/proxy-keys", await repo.CreateProxyKeyAsync(request, ct));
         });
-        app.MapPost("/api/admin/proxies", async (HttpContext context, UpsertProxyRequest request, StateRepository repo, CancellationToken ct) =>
+        app.MapPut("/api/admin/proxy-keys/{id}/enabled", async (HttpContext context, string id, SetProxyKeyEnabledRequest request, StateRepository repo, CancellationToken ct) =>
         {
             RequireAdminMutation(context);
-            return Results.Created("/api/admin/proxies", await repo.CreateProxyAsync(request, ct));
-        });
-        app.MapPut("/api/admin/proxies/{id}", async (HttpContext context, string id, UpsertProxyRequest request, StateRepository repo, CancellationToken ct) =>
-        {
-            RequireAdminMutation(context);
-            var result = await repo.UpdateProxyAsync(id, request, ct);
+            ProxyKeyView? result = await repo.SetProxyKeyEnabledAsync(id, request.Enabled, ct);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
-        app.MapDelete("/api/admin/proxies/{id}", async (HttpContext context, string id, StateRepository repo, CancellationToken ct) =>
+        app.MapDelete("/api/admin/proxy-keys/{id}", async (HttpContext context, string id, StateRepository repo, CancellationToken ct) =>
         {
             RequireAdminMutation(context);
-            return await repo.DeleteProxyAsync(id, ct) ? Results.NoContent() : Results.NotFound();
+            return await repo.DeleteProxyKeyAsync(id, ct) ? Results.NoContent() : Results.NotFound();
         });
 
         app.MapPost("/api/agent/heartbeat", async (HttpContext context, AgentHeartbeatRequest request, StateRepository repo, CancellationToken ct) =>

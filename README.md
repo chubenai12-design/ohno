@@ -2,8 +2,8 @@
 
 Một image, hai chế độ chạy:
 
-- `master`: admin dashboard, quản lý vệ tinh, proxy và IP outbound.
-- `satellite`: kết nối tới master, báo IP public của VPS và kiểm tra proxy được gán.
+- `master`: admin dashboard, quản lý vệ tinh và key ProxyXoay, tự whitelist IP và cấp proxy.
+- `satellite`: kết nối tới master, báo IP public của VPS và sử dụng proxy do master cấp.
 
 Repo này là lớp điều phối. Nó **không chạy engine WinForms/WebView2 trên Linux**. Khi satellite chạy Windows, có thể gắn `GarenaRegisterEngine` hiện tại làm executor ở bước tiếp theo.
 
@@ -47,10 +47,11 @@ Environment bắt buộc:
 |---|---|
 | `ADMIN_USER` | Tài khoản admin, mặc định `admin` |
 | `ADMIN_PASSWORD` | Mật khẩu dashboard |
-| `MASTER_ENCRYPTION_KEY` | Chuỗi ngẫu nhiên tối thiểu 24 ký tự; không thay sau khi đã lưu proxy |
+| `MASTER_ENCRYPTION_KEY` | Chuỗi ngẫu nhiên tối thiểu 24 ký tự; không thay sau khi đã lưu key |
 | `PUBLIC_URL` | URL master, ví dụ `https://garena-master.onrender.com` |
 | `TURSO_URL` | URL database Turso |
 | `TURSO_TOKEN` | Token Turso |
+| `PROXYXOAY_API_URL` | Tùy chọn; mặc định `https://proxyxoay.shop/api/get.php` |
 
 Nếu không đặt Turso, master lưu ở `data/orchestrator-state.json`. Filesystem Render không bền vững, vì vậy production trên Render nên đặt Turso.
 
@@ -73,19 +74,21 @@ Environment:
 | `SATELLITE_NAME` | Tên hiển thị |
 | `SATELLITE_SLOTS` | Số slot, hiện dùng để báo capacity |
 
-Satellite mở `/health` trên `$PORT`, vì vậy có thể chạy dưới dạng Render Web Service. Kết nối về master luôn đi trực tiếp; proxy chỉ được dùng cho phép thử `/api/ip`. IP trực tiếp master quan sát được chính là IP cần nhập vào allowlist của nhà cung cấp proxy.
+Satellite mở `/health` trên `$PORT`, vì vậy có thể chạy dưới dạng Render Web Service. Kết nối heartbeat về master luôn đi trực tiếp. Master dùng IP quan sát được từ kết nối này làm `whitelist` khi gọi ProxyXoay.
 
 > **Quan trọng:** Render không đảm bảo một IP outbound duy nhất cho service mặc định. Một service có thể dùng bất kỳ IP nào trong các CIDR của region. Dashboard hiển thị IP đang được quan sát để chẩn đoán; để allowlist ổn định, sao chép toàn bộ dải tại **Render service → Connect → Outbound**, hoặc dùng Dedicated Outbound IP. Xem [Render Outbound IP Addresses](https://render.com/docs/outbound-ip-addresses).
 
-## Cách kiểm tra proxy
+## Cấp proxy tự động bằng key ProxyXoay
 
-1. Tạo satellite và chờ trạng thái Online.
-2. Sao chép cột **IP VPS để whitelist**.
-3. Thêm IP đó vào allowlist phía nhà cung cấp proxy.
-4. Thêm proxy trong dashboard và gán cho satellite.
-5. Satellite kiểm tra mỗi 60 giây và báo `Proxy IP`, độ trễ hoặc lỗi.
+1. Mở dashboard master và thêm các key ProxyXoay.
+2. Tạo/deploy satellite và chờ trạng thái Online.
+3. Master tự lấy một key chưa sử dụng, gắn key đó với satellite.
+4. Master gọi `get.php` với `nhamang=random`, `tinhthanh=0` và `whitelist=<IP vệ tinh>`.
+5. Proxy HTTP trả về được gửi cho satellite qua heartbeat.
+6. Satellite kiểm tra proxy mỗi 60 giây và báo IP proxy, độ trễ hoặc lỗi.
+7. Master tự gọi API lại 90 giây trước hạn hoặc ngay khi IP outbound của vệ tinh thay đổi.
 
-Master không bao giờ trả proxy password qua admin API. Password được mã hóa AES-GCM bằng `MASTER_ENCRYPTION_KEY`, chỉ được giải mã khi gửi qua HTTPS tới satellite đã xác thực.
+Mỗi key chỉ cấp cho một vệ tinh tại một thời điểm. Khi xóa vệ tinh hoặc tắt key, key được trả lại kho để phân cho vệ tinh khác. Key và proxy password được mã hóa AES-GCM bằng `MASTER_ENCRYPTION_KEY`; admin API chỉ trả key đã che ký tự.
 
 ## Build Docker
 
