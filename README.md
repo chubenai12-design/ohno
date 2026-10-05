@@ -88,6 +88,8 @@ Satellite mở `/health` trên `$PORT`, vì vậy có thể chạy dưới dạn
 6. Satellite kiểm tra proxy mỗi 60 giây và báo IP proxy, độ trễ hoặc lỗi.
 7. Master tự gọi API lại 90 giây trước hạn hoặc ngay khi IP outbound của vệ tinh thay đổi.
 
+Mỗi key có giới hạn cứng tối đa một lần gọi API trong 61 giây. Nếu proxy gần hết hạn, IP thay đổi hoặc API trả lỗi trong khoảng chờ này, master đợi đủ 61 giây rồi mới gọi lại.
+
 Mỗi key chỉ cấp cho một vệ tinh tại một thời điểm. Khi xóa vệ tinh hoặc tắt key, key được trả lại kho để phân cho vệ tinh khác. Key và proxy password được mã hóa AES-GCM bằng `MASTER_ENCRYPTION_KEY`; admin API chỉ trả key đã che ký tự.
 
 ## Build Docker

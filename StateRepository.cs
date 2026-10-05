@@ -6,6 +6,7 @@ namespace GarenaOrchestrator;
 public sealed class StateRepository
 {
     private static readonly TimeSpan RefreshBeforeExpiry = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan MinimumProviderInterval = TimeSpan.FromSeconds(61);
     private readonly IStateStore _store;
     private readonly SecretProtector _protector;
     private readonly ProxyXoayClient _proxyXoay;
@@ -282,7 +283,7 @@ public sealed class StateRepository
     }
 
     private static bool NeedsRefresh(ProxyKeyRecord key, string observedIp) =>
-        !(key.LastError is not null && key.LastRefreshUtc > DateTime.UtcNow.AddSeconds(-60)) &&
+        (key.LastRefreshUtc is null || key.LastRefreshUtc <= DateTime.UtcNow - MinimumProviderInterval) &&
         (string.IsNullOrWhiteSpace(key.CurrentProxyUrl) || key.WhitelistedIp != observedIp ||
          key.ExpiresUtc is null || key.ExpiresUtc <= DateTime.UtcNow + RefreshBeforeExpiry);
 
